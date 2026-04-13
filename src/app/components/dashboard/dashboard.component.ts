@@ -4,11 +4,12 @@ import { CommonModule } from '@angular/common';
 import { ExpenseService } from '../../services/expense.service';
 import { AuthService } from '../../services/auth.service';
 import { DashboardSummary, CATEGORY_ICONS } from '../../models';
+import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, FormsModule],
   template: `
     <div class="dashboard">
       <div class="page-header">
