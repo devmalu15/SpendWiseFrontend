@@ -1,11 +1,11 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiService } from './api.service';
 import { Expense, CreateExpenseRequest, BudgetResponse, RecurringExpense, DashboardSummary, MonthlyStats, YearlyStats } from '../models';
 
 @Injectable({ providedIn: 'root' })
 export class ExpenseService {
-  constructor(private api: ApiService) {}
+  private api = inject(ApiService);
 
   getExpenses(filters?: { month?: number; year?: number; category?: string; search?: string }): Observable<Expense[]> {
     const params: Record<string, string> = {};

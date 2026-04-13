@@ -1,5 +1,5 @@
-import { Component, signal } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet, Router } from '@angular/router';
+import { Component, signal, inject } from '@angular/core';
+import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
@@ -7,86 +7,76 @@ import { AuthService } from '../../services/auth.service';
   standalone: true,
   imports: [RouterOutlet, RouterLink, RouterLinkActive],
   template: `
-    <div class="shell">
+    <div class="flex flex-col md:flex-row min-h-screen bg-bg text-text">
+      <!-- Mobile Header -->
+      <header class="md:hidden flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-bg z-50">
+        <div class="text-lg font-black tracking-tighter uppercase">SPENDWISE</div>
+        <button (click)="mobileMenuOpen.set(!mobileMenuOpen())" class="p-2">
+          <span class="material-icons">{{ mobileMenuOpen() ? 'close' : 'menu' }}</span>
+        </button>
+      </header>
+
       <!-- Sidebar -->
-      <aside class="sidebar" [class.collapsed]="collapsed()">
-        <div class="sidebar-header">
-          <span class="logo-icon">💸</span>
-          @if (!collapsed()) { <span class="logo-text">SpendWise</span> }
+      <aside 
+        [class.translate-x-0]="mobileMenuOpen()" 
+        [class.-translate-x-full]="!mobileMenuOpen()"
+        class="fixed inset-0 z-40 md:relative md:translate-x-0 w-full md:w-64 bg-bg border-r border-border flex flex-col transition-transform duration-300 ease-in-out"
+      >
+        <div class="hidden md:flex items-center px-8 py-10">
+          <div class="text-xl font-black tracking-tighter uppercase">SPENDWISE</div>
         </div>
 
-        <nav class="sidebar-nav">
+        <nav class="flex-1 px-4 py-6 space-y-2">
           @for (item of navItems; track item.path) {
-            <a [routerLink]="item.path" routerLinkActive="active" class="nav-item" [title]="item.label">
-              <span class="nav-icon">{{ item.icon }}</span>
-              @if (!collapsed()) { <span class="nav-label">{{ item.label }}</span> }
+            <a 
+              [routerLink]="item.path" 
+              routerLinkActive="bg-neutral-100 dark:bg-neutral-900 font-bold" 
+              (click)="mobileMenuOpen.set(false)"
+              class="flex items-center gap-4 px-4 py-3 text-sm uppercase tracking-widest hover:bg-neutral-50 dark:hover:bg-neutral-950 transition-colors"
+            >
+              <span class="material-icons text-dim">{{ item.icon }}</span>
+              {{ item.label }}
             </a>
           }
         </nav>
 
-        <div class="sidebar-footer">
-          <a routerLink="/app/profile" routerLinkActive="active" class="nav-item user-item" [title]="user()?.fullName || ''">
-            <div class="avatar" [style.background]="user()?.avatarColor">
+        <div class="p-4 border-t border-border">
+          <a 
+            routerLink="/app/profile" 
+            routerLinkActive="bg-neutral-100 dark:bg-neutral-900"
+            (click)="mobileMenuOpen.set(false)"
+            class="flex items-center gap-4 px-4 py-4 hover:bg-neutral-50 dark:hover:bg-neutral-950 transition-colors"
+          >
+            <div class="w-8 h-8 flex items-center justify-center bg-text text-bg font-bold text-xs">
               {{ user()?.fullName?.charAt(0)?.toUpperCase() }}
             </div>
-            @if (!collapsed()) {
-              <div class="user-info">
-                <span class="user-name">{{ user()?.fullName }}</span>
-                <span class="user-email">{{ user()?.email }}</span>
-              </div>
-            }
+            <div class="flex-1 min-w-0">
+              <div class="text-xs font-bold truncate uppercase tracking-wider">{{ user()?.fullName }}</div>
+              <div class="text-[10px] text-dim truncate uppercase tracking-tighter">{{ user()?.email }}</div>
+            </div>
           </a>
-          <button class="collapse-btn" (click)="collapsed.set(!collapsed())" [title]="collapsed() ? 'Expand' : 'Collapse'">
-            {{ collapsed() ? '→' : '←' }}
-          </button>
         </div>
       </aside>
 
-      <!-- Main -->
-      <main class="main-content">
-        <router-outlet />
+      <!-- Main Content -->
+      <main class="flex-1 overflow-y-auto">
+        <div class="max-w-6xl mx-auto">
+          <router-outlet />
+        </div>
       </main>
     </div>
-  `,
-  styles: [`
-    .shell { display: flex; height: 100vh; overflow: hidden; }
-    .sidebar { display: flex; flex-direction: column; width: 240px; min-width: 240px; background: var(--bg-card); border-right: 1px solid var(--border); transition: all 0.3s cubic-bezier(0.4,0,0.2,1); overflow: hidden; }
-    .sidebar.collapsed { width: 64px; min-width: 64px; }
-    .sidebar-header { display: flex; align-items: center; gap: 10px; padding: 20px 16px; border-bottom: 1px solid var(--border); overflow: hidden; white-space: nowrap; }
-    .logo-icon { font-size: 24px; flex-shrink: 0; }
-    .logo-text { font-family: var(--font-display); font-size: 18px; font-weight: 800; background: linear-gradient(135deg,#7C3AED,#06B6D4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .sidebar-nav { flex: 1; padding: 12px 8px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; overflow-x: hidden; }
-    .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 10px; border-radius: var(--radius-sm); color: var(--text-muted); font-size: 14px; font-weight: 500; transition: var(--transition); white-space: nowrap; overflow: hidden; text-decoration: none; }
-    .nav-item:hover { background: var(--bg-elevated); color: var(--text); }
-    .nav-item.active { background: rgba(124,58,237,0.15); color: var(--primary-light); }
-    .nav-icon { font-size: 18px; flex-shrink: 0; width: 24px; text-align: center; }
-    .nav-label { overflow: hidden; text-overflow: ellipsis; }
-    .sidebar-footer { padding: 8px; border-top: 1px solid var(--border); }
-    .user-item { margin-bottom: 4px; }
-    .avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #fff; flex-shrink: 0; }
-    .user-info { display: flex; flex-direction: column; min-width: 0; }
-    .user-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
-    .user-email { font-size: 11px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .collapse-btn { width: 100%; padding: 8px; background: var(--bg-elevated); border-radius: 8px; color: var(--text-muted); font-size: 14px; transition: var(--transition); }
-    .collapse-btn:hover { background: var(--bg-hover); color: var(--text); }
-    .main-content { flex: 1; overflow-y: auto; background: var(--bg); }
-    @media (max-width: 768px) {
-      .sidebar { position: fixed; z-index: 100; height: 100vh; transform: translateX(-100%); }
-      .sidebar.open { transform: translateX(0); }
-      .main-content { width: 100%; }
-    }
-  `]
+  `
 })
 export class ShellComponent {
-  collapsed = signal(false);
+  public auth = inject(AuthService);
+  mobileMenuOpen = signal(false);
 
   navItems = [
-    { path: '/app/dashboard', icon: '🏠', label: 'Dashboard' },
-    { path: '/app/expenses', icon: '💳', label: 'Expenses' },
-    { path: '/app/budget', icon: '🎯', label: 'Budget' },
-    { path: '/app/stats', icon: '📊', label: 'Statistics' },
+    { path: '/app/dashboard', icon: 'dashboard', label: 'Dashboard' },
+    { path: '/app/expenses', icon: 'payments', label: 'Expenses' },
+    { path: '/app/budget', icon: 'track_changes', label: 'Budget' },
+    { path: '/app/stats', icon: 'bar_chart', label: 'Stats' },
   ];
 
-  constructor(public auth: AuthService, private router: Router) {}
   get user() { return this.auth.user; }
 }

@@ -105,8 +105,8 @@ export const PAYMENT_METHODS = ['Cash', 'UPI', 'Credit Card', 'Debit Card', 'Net
 export const FREQUENCIES = ['Daily', 'Weekly', 'Monthly', 'Yearly'];
 
 export const CATEGORY_ICONS: Record<string, string> = {
-  Food: '🍔', Transport: '🚗', Shopping: '🛍️', Health: '💊',
-  Entertainment: '🎮', Bills: '💡', Education: '📚', Other: '💰'
+  Food: 'restaurant', Transport: 'directions_car', Shopping: 'shopping_bag', Health: 'medical_services',
+  Entertainment: 'sports_esports', Bills: 'receipt_long', Education: 'school', Other: 'payments'
 };
 
 export const CURRENCIES = [

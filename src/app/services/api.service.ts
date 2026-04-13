@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
@@ -6,9 +6,10 @@ export const API_URL = 'https://spendwise-backend.runasp.net';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
-  constructor(private http: HttpClient) {}
+  private http = inject(HttpClient);
 
   private getHeaders(): HttpHeaders {
+    if (typeof window === 'undefined') return new HttpHeaders();
     const token = sessionStorage.getItem('sw_token');
     return token ? new HttpHeaders({ Authorization: `Bearer ${token}` }) : new HttpHeaders();
   }

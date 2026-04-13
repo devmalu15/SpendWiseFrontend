@@ -1,4 +1,4 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
@@ -11,126 +11,111 @@ import { Router } from '@angular/router';
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="profile-page">
-      <div class="page-header">
-        <h1 class="page-title">Profile & Settings</h1>
+    <div class="px-6 py-10 md:px-12 md:py-16">
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
+        <div>
+          <h1 class="text-4xl md:text-5xl font-black tracking-tighter uppercase mb-2">
+            PROFILE.
+          </h1>
+          <p class="text-sm font-bold uppercase tracking-[0.2em] text-dim">
+            SETTINGS / PREFERENCES
+          </p>
+        </div>
       </div>
 
-      <div class="profile-grid">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-16">
         <!-- Avatar + Name -->
-        <div class="card profile-card">
-          <div class="avatar-big" [style.background]="form.avatarColor">
+        <div class="flex flex-col items-center text-center">
+          <div class="w-32 h-32 flex items-center justify-center bg-text text-bg text-5xl font-black tracking-tighter mb-6">
             {{ auth.user()?.fullName?.charAt(0)?.toUpperCase() }}
           </div>
-          <div class="profile-name">{{ auth.user()?.fullName }}</div>
-          <div class="profile-email">{{ auth.user()?.email }}</div>
+          <div class="text-xl font-black tracking-tighter uppercase mb-1">{{ auth.user()?.fullName }}</div>
+          <div class="text-[10px] font-bold uppercase tracking-widest text-dim mb-8">{{ auth.user()?.email }}</div>
 
-          <div class="color-picker">
-            <label class="form-label">Avatar Color</label>
-            <div class="colors">
-              @for (c of avatarColors; track c) {
-                <button class="color-btn" [style.background]="c" [class.selected]="form.avatarColor === c" (click)="form.avatarColor = c"></button>
-              }
-            </div>
-          </div>
+          <button class="btn btn-danger w-full py-3 text-xs tracking-widest" (click)="logout()">
+            SIGN OUT
+          </button>
         </div>
 
         <!-- Settings -->
-        <div class="card settings-card">
-          <h2 class="section-title" style="margin-bottom:24px">Account Settings</h2>
+        <div class="lg:col-span-2 space-y-12">
+          <section>
+            <h2 class="text-xs font-bold uppercase tracking-[0.3em] mb-8 border-b border-border pb-4">ACCOUNT SETTINGS</h2>
+            
+            @if (saved()) { <div class="mb-6 p-4 border border-money-pos text-money-pos text-[10px] font-bold uppercase tracking-wider">SETTINGS SAVED</div> }
+            @if (saveError()) { <div class="mb-6 p-4 border border-money-neg text-money-neg text-[10px] font-bold uppercase tracking-wider">{{ saveError() }}</div> }
 
-          @if (saved()) { <div class="success-msg">Settings saved! ✅</div> }
-          @if (saveError()) { <div class="error-msg">{{ saveError() }}</div> }
+            <div class="space-y-6">
+              <div class="form-group">
+                <label class="form-label" for="prof-name">FULL NAME</label>
+                <input class="form-input" id="prof-name" [(ngModel)]="form.fullName" placeholder="YOUR NAME" />
+              </div>
 
-          <div class="form-group">
-            <label class="form-label">Full Name</label>
-            <input class="form-input" [(ngModel)]="form.fullName" placeholder="Your name" />
-          </div>
+              <div class="form-group">
+                <label class="form-label" for="prof-currency">CURRENCY</label>
+                <select class="form-input" id="prof-currency" [(ngModel)]="form.currency">
+                  @for (c of currencies; track c.code) {
+                    <option [value]="c.code">{{ c.symbol }} {{ c.name | uppercase }} ({{ c.code }})</option>
+                  }
+                </select>
+              </div>
 
-          <div class="form-group">
-            <label class="form-label">Currency</label>
-            <select class="form-input" [(ngModel)]="form.currency">
-              @for (c of currencies; track c.code) {
-                <option [value]="c.code">{{ c.symbol }} {{ c.name }} ({{ c.code }})</option>
-              }
-            </select>
-          </div>
+              <button class="btn btn-primary px-12 py-3 text-xs tracking-widest" [disabled]="saving()" (click)="save()">
+                {{ saving() ? 'SAVING...' : 'SAVE CHANGES' }}
+              </button>
+            </div>
+          </section>
 
-          <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px" [disabled]="saving()" (click)="save()">
-            {{ saving() ? 'Saving...' : 'Save Changes' }}
-          </button>
-
-          <div class="divider"></div>
-
-          <button class="btn btn-danger" style="width:100%;justify-content:center" (click)="logout()">
-            🚪 Sign Out
-          </button>
-        </div>
-      </div>
-
-      <!-- Account Info -->
-      <div class="card info-card">
-        <h2 class="section-title" style="margin-bottom:16px">About SpendWise</h2>
-        <div class="info-grid">
-          <div class="info-item"><span class="info-label">Version</span><span class="info-val">1.0.0</span></div>
-          <div class="info-item"><span class="info-label">Member Since</span><span class="info-val">{{ auth.user() ? 'Active' : '—' }}</span></div>
-          <div class="info-item"><span class="info-label">Currency</span><span class="info-val">{{ auth.getCurrencySymbol() }} ({{ auth.user()?.currency }})</span></div>
+          <section>
+            <h2 class="text-xs font-bold uppercase tracking-[0.3em] mb-8 border-b border-border pb-4">ABOUT SPENDWISE</h2>
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-8">
+              <div>
+                <div class="text-[10px] font-bold uppercase tracking-widest text-dim mb-2">VERSION</div>
+                <div class="text-xs font-bold">1.0.0 / MINIMAL</div>
+              </div>
+              <div>
+                <div class="text-[10px] font-bold uppercase tracking-widest text-dim mb-2">STATUS</div>
+                <div class="text-xs font-bold text-money-pos uppercase">ACTIVE</div>
+              </div>
+              <div>
+                <div class="text-[10px] font-bold uppercase tracking-widest text-dim mb-2">BUILD</div>
+                <div class="text-xs font-bold uppercase">ANGULAR 21</div>
+              </div>
+            </div>
+          </section>
         </div>
       </div>
     </div>
-  `,
-  styles: [`
-    .profile-page { padding: 32px; max-width: 800px; margin: 0 auto; }
-    .page-header { margin-bottom: 28px; }
-    .page-title { font-family: var(--font-display); font-size: 28px; font-weight: 800; }
-    .profile-grid { display: grid; grid-template-columns: 280px 1fr; gap: 20px; margin-bottom: 20px; }
-    .profile-card { padding: 32px 24px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-    .avatar-big { width: 88px; height: 88px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 36px; font-weight: 800; color: #fff; margin-bottom: 8px; transition: var(--transition); }
-    .profile-name { font-size: 18px; font-weight: 700; }
-    .profile-email { font-size: 13px; color: var(--text-muted); }
-    .color-picker { width: 100%; margin-top: 16px; }
-    .colors { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
-    .color-btn { width: 32px; height: 32px; border-radius: 50%; border: 3px solid transparent; transition: var(--transition); }
-    .color-btn.selected { border-color: #fff; transform: scale(1.15); }
-    .color-btn:hover { transform: scale(1.1); }
-    .settings-card { padding: 28px; display: flex; flex-direction: column; gap: 16px; }
-    .section-title { font-size: 16px; font-weight: 700; }
-    .success-msg { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.2); border-radius: var(--radius-sm); padding: 10px 14px; color: var(--success); font-size: 13px; }
-    .error-msg { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); border-radius: var(--radius-sm); padding: 10px 14px; color: var(--danger); font-size: 13px; }
-    .divider { height: 1px; background: var(--border); margin: 4px 0; }
-    .info-card { padding: 24px; }
-    .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-    .info-item { display: flex; flex-direction: column; gap: 4px; }
-    .info-label { font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
-    .info-val { font-size: 15px; font-weight: 600; }
-    @media (max-width: 700px) { .profile-grid { grid-template-columns: 1fr; } .profile-page { padding: 16px; } .info-grid { grid-template-columns: 1fr 1fr; } }
-  `]
+  `
 })
 export class ProfileComponent {
+  public auth = inject(AuthService);
+  private svc = inject(ExpenseService);
+  private router = inject(Router);
+
   saving = signal(false);
   saved = signal(false);
   saveError = signal('');
   currencies = CURRENCIES;
-  avatarColors = ['#6C63FF','#FF6584','#43D9AD','#F59E0B','#3B82F6','#10B981','#EF4444','#8B5CF6','#EC4899','#06B6D4'];
 
   form = {
     fullName: this.auth.user()?.fullName || '',
-    avatarColor: this.auth.user()?.avatarColor || '#6C63FF',
+    avatarColor: this.auth.user()?.avatarColor || '#000000',
     currency: this.auth.user()?.currency || 'INR'
   };
 
-  constructor(public auth: AuthService, private svc: ExpenseService, private router: Router) {}
+  constructor() {}
 
   save() {
     this.saved.set(false); this.saveError.set('');
     this.saving.set(true);
     this.svc.updateProfile(this.form).subscribe({
-      next: (res: any) => {
+      next: () => {
         this.auth.updateUser({ fullName: this.form.fullName, avatarColor: this.form.avatarColor, currency: this.form.currency });
         this.saving.set(false); this.saved.set(true);
         setTimeout(() => this.saved.set(false), 2500);
       },
-      error: () => { this.saveError.set('Failed to save. Please try again.'); this.saving.set(false); }
+      error: () => { this.saveError.set('FAILED TO SAVE'); this.saving.set(false); }
     });
   }
 

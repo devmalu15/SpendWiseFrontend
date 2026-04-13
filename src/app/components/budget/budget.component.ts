@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ExpenseService } from '../../services/expense.service';
@@ -10,76 +10,88 @@ import { BudgetResponse, RecurringExpense, CATEGORIES, CATEGORY_ICONS, FREQUENCI
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="budget-page">
-      <div class="page-header">
+    <div class="px-6 py-10 md:px-12 md:py-16">
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
         <div>
-          <h1 class="page-title">Budget</h1>
-          <p class="page-sub">{{ currentMonthName }}</p>
+          <h1 class="text-4xl md:text-5xl font-black tracking-tighter uppercase mb-2">
+            BUDGET.
+          </h1>
+          <p class="text-sm font-bold uppercase tracking-[0.2em] text-dim">
+            {{ currentMonthName }} / LIMITS
+          </p>
         </div>
       </div>
 
-      <div class="budget-grid">
-        <!-- Set Budget Card -->
-        <div class="card budget-set-card">
-          <h2 class="section-title">Monthly Budget</h2>
-          <div class="form-group" style="margin-top:16px">
-            <label class="form-label">Total Monthly Limit</label>
-            <div class="amount-input-wrap">
-              <span class="curr-sym">{{ sym }}</span>
-              <input class="form-input amount-input" type="number" [(ngModel)]="budgetLimit" placeholder="e.g. 30000" />
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-px bg-border border border-border mb-16">
+        <!-- Set Budget -->
+        <div class="bg-bg p-8">
+          <h2 class="text-xs font-bold uppercase tracking-[0.3em] mb-8">MONTHLY LIMIT</h2>
+          <div class="space-y-6">
+            <div class="form-group">
+              <label class="form-label" for="budget-limit">TOTAL BUDGET ({{ sym }})</label>
+              <input class="form-input text-2xl font-black tracking-tighter" id="budget-limit" type="number" [(ngModel)]="budgetLimit" placeholder="0" />
             </div>
+            <button class="btn btn-primary w-full py-4 text-xs tracking-widest" [disabled]="savingBudget()" (click)="saveBudget()">
+              {{ savingBudget() ? 'SAVING...' : 'UPDATE BUDGET' }}
+            </button>
+            @if (budgetSaved()) { <div class="text-[10px] font-bold uppercase tracking-widest text-money-pos text-center">SAVED SUCCESSFULLY</div> }
           </div>
-          <button class="btn btn-primary" style="width:100%;margin-top:16px;justify-content:center" [disabled]="savingBudget()" (click)="saveBudget()">
-            {{ savingBudget() ? 'Saving...' : 'Set Budget' }}
-          </button>
-          @if (budgetSaved()) { <div class="success-msg">Budget saved! ✅</div> }
         </div>
 
-        <!-- Budget Status -->
-        @if (budget()) {
-          <div class="card budget-status-card fade-in">
-            <h2 class="section-title">This Month's Status</h2>
-            <div class="budget-ring-wrap">
-              <div class="budget-donut" [class.danger]="budget()!.percentUsed > 90" [class.warning]="budget()!.percentUsed > 70 && budget()!.percentUsed <= 90">
-                <svg viewBox="0 0 100 100" width="140" height="140">
-                  <circle cx="50" cy="50" r="40" fill="none" stroke="var(--bg-elevated)" stroke-width="12"/>
-                  <circle cx="50" cy="50" r="40" fill="none" [attr.stroke]="donutColor()" stroke-width="12"
-                    stroke-dasharray="251.2" [attr.stroke-dashoffset]="dashOffset()" stroke-linecap="round"
-                    transform="rotate(-90 50 50)" style="transition:stroke-dashoffset 0.8s ease"/>
+        <!-- Status -->
+        <div class="bg-bg p-8">
+          <h2 class="text-xs font-bold uppercase tracking-[0.3em] mb-8">CURRENT STATUS</h2>
+          @if (budget()) {
+            <div class="flex items-center gap-12">
+              <div class="relative w-32 h-32 flex items-center justify-center">
+                <svg viewBox="0 0 100 100" class="w-full h-full -rotate-90">
+                  <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" stroke-width="2" class="text-neutral-100 dark:text-neutral-900"/>
+                  <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" stroke-width="4"
+                    [attr.stroke-dasharray]="282.7" [attr.stroke-dashoffset]="dashOffset()"
+                    class="transition-all duration-1000"
+                    [class.text-money-neg]="budget()!.percentUsed > 90"
+                    [class.text-money-neu]="budget()!.percentUsed <= 90"/>
                 </svg>
-                <div class="donut-center">
-                  <span class="donut-pct">{{ budget()!.percentUsed | number:'1.0-0' }}%</span>
-                  <span class="donut-label">used</span>
+                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                  <span class="text-2xl font-black tracking-tighter">{{ budget()!.percentUsed | number:'1.0-0' }}%</span>
+                  <span class="text-[8px] font-bold uppercase tracking-widest text-dim">USED</span>
+                </div>
+              </div>
+              <div class="flex-1 space-y-4">
+                <div class="flex justify-between items-end">
+                  <span class="text-[10px] font-bold uppercase tracking-widest text-dim">SPENT</span>
+                  <span class="text-sm font-black tracking-tighter">{{ sym }}{{ budget()!.totalSpent | number:'1.0-0' }}</span>
+                </div>
+                <div class="flex justify-between items-end">
+                  <span class="text-[10px] font-bold uppercase tracking-widest text-dim">REMAINING</span>
+                  <span class="text-sm font-black tracking-tighter" [class.money-neg]="budget()!.remaining < 0">{{ sym }}{{ budget()!.remaining | number:'1.0-0' }}</span>
                 </div>
               </div>
             </div>
-            <div class="budget-stats">
-              <div class="bstat"><span class="bstat-label">Spent</span><span class="bstat-val">{{ sym }}{{ budget()!.totalSpent | number:'1.0-0' }}</span></div>
-              <div class="bstat"><span class="bstat-label">Remaining</span><span class="bstat-val" [class.text-danger]="budget()!.remaining < 0">{{ sym }}{{ budget()!.remaining | number:'1.0-0' }}</span></div>
-              <div class="bstat"><span class="bstat-label">Limit</span><span class="bstat-val">{{ sym }}{{ budget()!.monthlyLimit | number:'1.0-0' }}</span></div>
+          } @else {
+            <div class="h-32 flex items-center justify-center border border-dashed border-border text-[10px] font-bold uppercase tracking-widest text-dim">
+              SET A BUDGET TO SEE STATUS
             </div>
-          </div>
-        } @else {
-          <div class="card budget-status-card empty-budget">
-            <div style="font-size:48px;margin-bottom:12px">🎯</div>
-            <p>Set a monthly budget to start tracking your spending limits.</p>
-          </div>
-        }
+          }
+        </div>
       </div>
 
-      <!-- Category Breakdown if budget exists -->
+      <!-- Category Breakdown -->
       @if (budget()?.categorySpent && catEntries.length > 0) {
-        <div class="card cat-breakdown fade-in">
-          <h2 class="section-title" style="margin-bottom:20px">Category Spending</h2>
-          <div class="cat-grid">
+        <div class="mb-16">
+          <h2 class="text-xs font-bold uppercase tracking-[0.3em] mb-8 border-b border-border pb-4">CATEGORY BREAKDOWN</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
             @for (entry of catEntries; track entry[0]) {
-              <div class="cat-item">
-                <div class="cat-item-header">
-                  <span>{{ getCatIcon(entry[0]) }} {{ entry[0] }}</span>
-                  <span class="cat-spent">{{ sym }}{{ entry[1] | number:'1.0-0' }}</span>
+              <div class="group">
+                <div class="flex justify-between items-end mb-3">
+                  <div class="flex items-center gap-2">
+                    <span class="material-icons text-dim text-sm">{{ getCatIcon(entry[0]) }}</span>
+                    <span class="text-[10px] font-bold uppercase tracking-widest">{{ entry[0] }}</span>
+                  </div>
+                  <span class="text-xs font-black tracking-tighter">{{ sym }}{{ entry[1] | number:'1.0-0' }}</span>
                 </div>
-                <div class="progress-bar">
-                  <div class="progress-fill" [style.width.%]="catPct(entry[1])"></div>
+                <div class="h-px bg-neutral-100 dark:bg-neutral-900 relative">
+                  <div class="absolute inset-y-0 left-0 bg-text transition-all duration-700" [style.width.%]="catPct(entry[1])"></div>
                 </div>
               </div>
             }
@@ -87,38 +99,43 @@ import { BudgetResponse, RecurringExpense, CATEGORIES, CATEGORY_ICONS, FREQUENCI
         </div>
       }
 
-      <!-- Recurring Expenses -->
-      <div class="recurring-section">
-        <div class="section-header-row">
-          <h2 class="section-title">Recurring Expenses</h2>
-          <button class="btn btn-primary btn-sm" (click)="showRecModal.set(true)">+ Add Recurring</button>
+      <!-- Recurring -->
+      <div>
+        <div class="flex items-center justify-between mb-8 border-b border-border pb-4">
+          <h2 class="text-xs font-bold uppercase tracking-[0.3em]">RECURRING PAYMENTS</h2>
+          <button class="text-[10px] font-bold uppercase tracking-widest hover:underline" (click)="showRecModal.set(true)">+ ADD RECURRING</button>
         </div>
 
         @if (loadingRec()) {
-          <div class="skeleton" style="height:100px;border-radius:12px"></div>
+          <div class="space-y-4">
+            @for (i of [1,2]; track i) { <div class="h-20 bg-neutral-100 dark:bg-neutral-900 animate-pulse"></div> }
+          </div>
         } @else if (recurring().length === 0) {
-          <div class="card empty-rec">
-            <span style="font-size:32px">🔄</span>
-            <p>No recurring expenses yet. Add subscriptions, rent, EMIs etc.</p>
+          <div class="py-12 text-center border border-dashed border-border text-[10px] font-bold uppercase tracking-widest text-dim">
+            NO RECURRING PAYMENTS FOUND
           </div>
         } @else {
-          <div class="rec-list">
+          <div class="divide-y divide-border border-y border-border">
             @for (r of recurring(); track r.id) {
-              <div class="card rec-item" [class.inactive]="!r.isActive">
-                <div class="rec-icon">{{ getCatIcon(r.category) }}</div>
-                <div class="rec-main">
-                  <div class="rec-title">{{ r.title }}</div>
-                  <div class="rec-meta">
-                    <span class="cat-pill" [class]="'cat-'+r.category">{{ r.category }}</span>
-                    <span class="rec-freq">{{ r.frequency }}</span>
-                    <span class="rec-due">Next: {{ r.nextDueDate | date:'d MMM' }}</span>
+              <div class="py-6 flex items-center gap-6 group" [class.opacity-40]="!r.isActive">
+                <div class="w-12 h-12 flex items-center justify-center border border-border">
+                  <span class="material-icons text-dim">{{ getCatIcon(r.category) }}</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="text-sm font-bold uppercase tracking-wider truncate">{{ r.title }}</div>
+                  <div class="text-[10px] font-bold uppercase tracking-widest text-dim mt-1">
+                    {{ r.frequency }} / NEXT: {{ r.nextDueDate | date:'d MMM' }}
                   </div>
                 </div>
-                <div class="rec-right">
-                  <span class="rec-amt">{{ sym }}{{ r.amount | number:'1.0-0' }}</span>
-                  <div class="rec-actions">
-                    <button class="btn btn-icon btn-ghost btn-sm" (click)="toggleRecurring(r.id)" [title]="r.isActive ? 'Pause' : 'Resume'">{{ r.isActive ? '⏸️' : '▶️' }}</button>
-                    <button class="btn btn-icon btn-danger btn-sm" (click)="deleteRecurring(r.id)" title="Delete">🗑️</button>
+                <div class="text-right flex items-center gap-8">
+                  <div class="text-lg font-black tracking-tighter">{{ sym }}{{ r.amount | number:'1.0-0' }}</div>
+                  <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button class="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-900" (click)="toggleRecurring(r.id)">
+                      <span class="material-icons text-xs">{{ r.isActive ? 'pause' : 'play_arrow' }}</span>
+                    </button>
+                    <button class="p-2 hover:bg-red-50 dark:hover:bg-red-950 text-money-neg" (click)="deleteRecurring(r.id)">
+                      <span class="material-icons text-xs">delete</span>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -130,97 +147,59 @@ import { BudgetResponse, RecurringExpense, CATEGORIES, CATEGORY_ICONS, FREQUENCI
 
     <!-- Recurring Modal -->
     @if (showRecModal()) {
-      <div class="modal-overlay" (click)="closeModal($event)">
-        <div class="modal">
-          <h3 class="modal-title">Add Recurring Expense</h3>
-          @if (recError()) { <div class="error-msg">{{ recError() }}</div> }
-          <div class="form-group">
-            <label class="form-label">Title *</label>
-            <input class="form-input" [(ngModel)]="recForm.title" placeholder="e.g. Netflix, Rent, EMI..." />
-          </div>
-          <div class="form-row2">
+      <div class="modal-overlay" (click)="closeModal($event)" (keydown.escape)="showRecModal.set(false)" tabindex="-1" role="dialog">
+        <div class="modal" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()" tabindex="-1">
+          <h3 class="text-lg font-black tracking-tighter uppercase mb-8">NEW RECURRING</h3>
+          @if (recError()) { 
+            <div class="mb-6 p-4 border border-money-neg text-money-neg text-[10px] font-bold uppercase tracking-wider">
+              {{ recError() }}
+            </div> 
+          }
+          <div class="space-y-6">
             <div class="form-group">
-              <label class="form-label">Amount *</label>
-              <input class="form-input" type="number" [(ngModel)]="recForm.amount" placeholder="0" />
+              <label class="form-label" for="rec-title">DESCRIPTION *</label>
+              <input class="form-input" id="rec-title" [(ngModel)]="recForm.title" placeholder="NETFLIX, RENT, ETC." />
             </div>
-            <div class="form-group">
-              <label class="form-label">Frequency</label>
-              <select class="form-input" [(ngModel)]="recForm.frequency">
-                @for (f of frequencies; track f) { <option>{{ f }}</option> }
-              </select>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="form-group">
+                <label class="form-label" for="rec-amount">AMOUNT *</label>
+                <input class="form-input" id="rec-amount" type="number" [(ngModel)]="recForm.amount" placeholder="0" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="rec-freq">FREQUENCY</label>
+                <select class="form-input" id="rec-freq" [(ngModel)]="recForm.frequency">
+                  @for (f of frequencies; track f) { <option>{{ f | uppercase }}</option> }
+                </select>
+              </div>
             </div>
-          </div>
-          <div class="form-row2">
-            <div class="form-group">
-              <label class="form-label">Category</label>
-              <select class="form-input" [(ngModel)]="recForm.category">
-                @for (c of categories; track c) { <option>{{ c }}</option> }
-              </select>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="form-group">
+                <label class="form-label" for="rec-cat">CATEGORY</label>
+                <select class="form-input" id="rec-cat" [(ngModel)]="recForm.category">
+                  @for (c of categories; track c) { <option>{{ c | uppercase }}</option> }
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="rec-date">NEXT DUE DATE *</label>
+                <input class="form-input" id="rec-date" type="date" [(ngModel)]="recForm.nextDueDate" />
+              </div>
             </div>
-            <div class="form-group">
-              <label class="form-label">Next Due Date *</label>
-              <input class="form-input" type="date" [(ngModel)]="recForm.nextDueDate" />
+            <div class="flex gap-4 pt-4">
+              <button class="btn btn-ghost flex-1 py-3 text-xs font-bold uppercase tracking-widest" (click)="showRecModal.set(false)">CANCEL</button>
+              <button class="btn btn-primary flex-1 py-3 text-xs font-bold uppercase tracking-widest" [disabled]="savingRec()" (click)="saveRecurring()">
+                {{ savingRec() ? 'SAVING...' : 'SAVE' }}
+              </button>
             </div>
-          </div>
-          <div class="modal-actions">
-            <button class="btn btn-ghost" (click)="showRecModal.set(false)">Cancel</button>
-            <button class="btn btn-primary" [disabled]="savingRec()" (click)="saveRecurring()">{{ savingRec() ? 'Saving...' : 'Add' }}</button>
           </div>
         </div>
       </div>
     }
-  `,
-  styles: [`
-    .budget-page { padding: 32px; max-width: 1000px; margin: 0 auto; }
-    .page-header { margin-bottom: 28px; }
-    .page-title { font-family: var(--font-display); font-size: 28px; font-weight: 800; }
-    .page-sub { color: var(--text-muted); font-size: 14px; margin-top: 4px; }
-    .budget-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
-    .budget-set-card, .budget-status-card { padding: 28px; }
-    .section-title { font-size: 16px; font-weight: 700; }
-    .amount-input-wrap { display: flex; align-items: center; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
-    .curr-sym { padding: 12px 14px; color: var(--text-muted); font-weight: 600; font-size: 16px; border-right: 1px solid var(--border); }
-    .amount-input { border: none !important; background: transparent !important; box-shadow: none !important; border-radius: 0 !important; }
-    .success-msg { color: var(--success); font-size: 13px; margin-top: 8px; text-align: center; }
-    .empty-budget { padding: 40px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; color: var(--text-muted); }
-    .budget-ring-wrap { display: flex; justify-content: center; margin: 20px 0; }
-    .budget-donut { position: relative; display: inline-flex; }
-    .donut-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-    .donut-pct { font-family: var(--font-display); font-size: 22px; font-weight: 800; }
-    .donut-label { font-size: 11px; color: var(--text-muted); }
-    .budget-stats { display: flex; justify-content: space-around; }
-    .bstat { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-    .bstat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
-    .bstat-val { font-size: 15px; font-weight: 700; }
-    .cat-breakdown { padding: 24px; margin-bottom: 24px; }
-    .cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
-    .cat-item-header { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px; font-weight: 600; }
-    .cat-spent { color: var(--text-muted); }
-    .progress-bar { height: 6px; background: var(--bg-elevated); border-radius: 3px; overflow: hidden; }
-    .progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent)); border-radius: 3px; transition: width 0.6s ease; }
-    .recurring-section { margin-top: 8px; }
-    .section-header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-    .empty-rec { display: flex; align-items: center; gap: 16px; padding: 24px; color: var(--text-muted); font-size: 14px; }
-    .rec-list { display: flex; flex-direction: column; gap: 10px; }
-    .rec-item { display: flex; align-items: center; gap: 14px; padding: 16px 20px; transition: var(--transition); }
-    .rec-item.inactive { opacity: 0.5; }
-    .rec-icon { font-size: 24px; width: 44px; height: 44px; background: var(--bg-elevated); border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .rec-main { flex: 1; min-width: 0; }
-    .rec-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
-    .rec-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; }
-    .rec-freq { color: var(--accent); font-weight: 600; }
-    .rec-due { color: var(--text-muted); }
-    .rec-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
-    .rec-amt { font-size: 16px; font-weight: 700; }
-    .rec-actions { display: flex; gap: 4px; }
-    .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
-    .form-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
-    .error-msg { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); border-radius: var(--radius-sm); padding: 10px 14px; color: var(--danger); font-size: 13px; margin-bottom: 12px; }
-    @media (max-width: 700px) { .budget-grid { grid-template-columns: 1fr; } .budget-page { padding: 16px; } .form-row2 { grid-template-columns: 1fr; } }
-  `]
+  `
 })
 export class BudgetComponent implements OnInit {
+  private svc = inject(ExpenseService);
+  public auth = inject(AuthService);
+
   loading = signal(false); loadingRec = signal(true);
   savingBudget = signal(false); budgetSaved = signal(false);
   showRecModal = signal(false); savingRec = signal(false); recError = signal('');
@@ -231,21 +210,20 @@ export class BudgetComponent implements OnInit {
   recForm = { title: '', amount: 0, category: 'Bills', frequency: 'Monthly', nextDueDate: new Date().toISOString().split('T')[0] };
 
   now = new Date();
-  get currentMonthName() { return this.now.toLocaleString('default', { month: 'long', year: 'numeric' }); }
+  get currentMonthName() { return this.now.toLocaleString('default', { month: 'long', year: 'numeric' }).toUpperCase(); }
   get sym() { return this.auth.getCurrencySymbol(); }
-  getCatIcon(c: string) { return CATEGORY_ICONS[c] || '💰'; }
+  getCatIcon(c: string) { return CATEGORY_ICONS[c] || 'payments'; }
   catPct(v: number) { const max = Math.max(...this.catEntries.map(e => e[1])); return max ? (v / max) * 100 : 0; }
-  donutColor() { const p = this.budget()?.percentUsed || 0; return p > 90 ? 'var(--danger)' : p > 70 ? 'var(--warning)' : 'var(--primary)'; }
-  dashOffset() { const pct = Math.min(this.budget()?.percentUsed || 0, 100); return 251.2 - (251.2 * pct / 100); }
+  dashOffset() { const pct = Math.min(this.budget()?.percentUsed || 0, 100); return 282.7 - (282.7 * pct / 100); }
 
-  constructor(private svc: ExpenseService, public auth: AuthService) {}
+  constructor() {}
 
   ngOnInit() { this.loadBudget(); this.loadRecurring(); }
 
   loadBudget() {
     this.svc.getBudget(this.now.getMonth() + 1, this.now.getFullYear()).subscribe({
       next: b => { this.budget.set(b); this.budgetLimit = b.monthlyLimit; this.catEntries = Object.entries(b.categorySpent || {}).sort((a,b) => b[1]-a[1]); },
-      error: () => {}
+      error: (err) => { console.error(err); }
     });
   }
 

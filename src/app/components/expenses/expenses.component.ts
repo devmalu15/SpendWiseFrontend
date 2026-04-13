@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ExpenseService } from '../../services/expense.service';
@@ -10,67 +10,82 @@ import { Expense, CATEGORIES, PAYMENT_METHODS, CATEGORY_ICONS, CreateExpenseRequ
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="expenses-page">
-      <div class="page-header">
+    <div class="px-6 py-10 md:px-12 md:py-16">
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
         <div>
-          <h1 class="page-title">Expenses</h1>
-          <p class="page-sub">{{ filtered().length }} transactions</p>
+          <h1 class="text-4xl md:text-5xl font-black tracking-tighter uppercase mb-2">
+            TRANSACTIONS.
+          </h1>
+          <p class="text-sm font-bold uppercase tracking-[0.2em] text-dim">
+            {{ filtered().length }} RECORDS FOUND
+          </p>
         </div>
-        <button class="btn btn-primary" (click)="openAdd()">+ Add Expense</button>
+        <button class="btn btn-primary px-8 py-3 text-xs tracking-widest" (click)="openAdd()">
+          NEW TRANSACTION
+        </button>
       </div>
 
       <!-- Filters -->
-      <div class="filters card">
-        <div class="filter-row">
-          <input class="form-input search-input" [(ngModel)]="searchTerm" (input)="applyFilters()" placeholder="🔍 Search expenses..." />
-          <select class="form-input filter-select" [(ngModel)]="filterCategory" (change)="applyFilters()">
-            <option value="">All Categories</option>
-            @for (c of categories; track c) { <option>{{ c }}</option> }
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-12 border border-border p-4">
+        <div class="md:col-span-2">
+          <input class="form-input" [(ngModel)]="searchTerm" (input)="applyFilters()" placeholder="SEARCH BY DESCRIPTION..." />
+        </div>
+        <select class="form-input" [(ngModel)]="filterCategory" (change)="applyFilters()">
+          <option value="">ALL CATEGORIES</option>
+          @for (c of categories; track c) { <option>{{ c | uppercase }}</option> }
+        </select>
+        <div class="grid grid-cols-2 gap-2">
+          <select class="form-input" [(ngModel)]="filterMonth" (change)="applyFilters()">
+            @for (m of months; track m.val) { <option [value]="m.val">{{ m.label | uppercase }}</option> }
           </select>
-          <select class="form-input filter-select" [(ngModel)]="filterMonth" (change)="applyFilters()">
-            @for (m of months; track m.val) { <option [value]="m.val">{{ m.label }}</option> }
-          </select>
-          <select class="form-input filter-select" [(ngModel)]="filterYear" (change)="applyFilters()">
+          <select class="form-input" [(ngModel)]="filterYear" (change)="applyFilters()">
             @for (y of years; track y) { <option [value]="y">{{ y }}</option> }
           </select>
         </div>
-        <div class="filter-summary">
-          Total: <strong>{{ sym }}{{ totalFiltered() | number:'1.0-0' }}</strong>
-        </div>
+      </div>
+
+      <div class="mb-8 flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-dim">
+        <span>TOTAL FOR PERIOD</span>
+        <span class="text-lg font-black tracking-tighter text-text">{{ sym }}{{ totalFiltered() | number:'1.0-0' }}</span>
       </div>
 
       <!-- Expense list -->
       @if (loading()) {
-        <div class="exp-list">
-          @for (i of [1,2,3,4,5]; track i) { <div class="skeleton" style="height:72px; border-radius:12px"></div> }
+        <div class="space-y-4">
+          @for (i of [1,2,3,4,5]; track i) { <div class="h-20 bg-neutral-100 dark:bg-neutral-900 animate-pulse"></div> }
         </div>
       } @else if (filtered().length === 0) {
-        <div class="empty-state">
-          <div class="empty-icon">🧾</div>
-          <h3>No expenses found</h3>
-          <p>Try adjusting your filters or add a new expense.</p>
+        <div class="py-24 text-center border border-dashed border-border">
+          <div class="text-4xl mb-4 text-dim">EMPTY</div>
+          <p class="text-xs font-bold uppercase tracking-widest text-dim">NO TRANSACTIONS MATCH YOUR FILTERS</p>
         </div>
       } @else {
-        <div class="exp-list fade-in">
+        <div class="divide-y divide-border border-y border-border">
           @for (e of filtered(); track e.id) {
-            <div class="exp-item">
-              <div class="exp-icon">{{ getCatIcon(e.category) }}</div>
-              <div class="exp-main">
-                <div class="exp-title-row">
-                  <span class="exp-title">{{ e.title }}</span>
-                  <span class="cat-pill" [class]="'cat-'+e.category">{{ e.category }}</span>
+            <div class="py-6 flex items-center gap-6 group">
+              <div class="w-12 h-12 flex items-center justify-center border border-border group-hover:bg-neutral-50 dark:group-hover:bg-neutral-950 transition-colors">
+                <span class="material-icons text-dim">{{ getCatIcon(e.category) }}</span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-3">
+                  <span class="text-sm font-bold uppercase tracking-wider truncate">{{ e.title }}</span>
+                  <span class="text-[10px] font-bold px-2 py-0.5 border border-border text-dim uppercase tracking-tighter">{{ e.category }}</span>
                 </div>
-                <div class="exp-meta">
-                  <span>{{ e.date | date:'d MMM yyyy' }}</span>
-                  @if (e.paymentMethod) { <span class="dot">·</span><span>{{ e.paymentMethod }}</span> }
-                  @if (e.tags) { <span class="dot">·</span><span class="tags">{{ e.tags }}</span> }
+                <div class="text-[10px] font-bold uppercase tracking-widest text-dim mt-1">
+                  {{ e.date | date:'d MMM yyyy' }} @if (e.paymentMethod) { <span class="mx-1">/</span> {{ e.paymentMethod }} }
                 </div>
               </div>
-              <div class="exp-right">
-                <span class="exp-amt">{{ sym }}{{ e.amount | number:'1.2-2' }}</span>
-                <div class="exp-actions">
-                  <button class="btn btn-icon btn-ghost" (click)="openEdit(e)" title="Edit">✏️</button>
-                  <button class="btn btn-icon btn-danger" (click)="deleteExpense(e.id)" title="Delete">🗑️</button>
+              <div class="text-right flex items-center gap-8">
+                <div>
+                  <div class="text-lg font-black tracking-tighter money-neg">{{ sym }}{{ e.amount | number:'1.2-2' }}</div>
+                </div>
+                <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button class="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-900" (click)="openEdit(e)" title="Edit">
+                    <span class="material-icons text-xs">edit</span>
+                  </button>
+                  <button class="p-2 hover:bg-red-50 dark:hover:bg-red-950 text-money-neg" (click)="deleteExpense(e.id)" title="Delete">
+                    <span class="material-icons text-xs">delete</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -81,94 +96,64 @@ import { Expense, CATEGORIES, PAYMENT_METHODS, CATEGORY_ICONS, CreateExpenseRequ
 
     <!-- Add/Edit Modal -->
     @if (showModal()) {
-      <div class="modal-overlay" (click)="closeModal($event)">
-        <div class="modal" style="max-width:520px">
-          <h3 class="modal-title">{{ editing ? 'Edit Expense' : 'Add Expense' }}</h3>
-          @if (formError()) { <div class="error-msg">{{ formError() }}</div> }
-          <div class="form-group">
-            <label class="form-label">Title *</label>
-            <input class="form-input" [(ngModel)]="form.title" placeholder="What did you spend on?" />
-          </div>
-          <div class="form-row2">
+      <div class="modal-overlay" (click)="closeModal($event)" (keydown.escape)="showModal.set(false)" tabindex="-1" role="dialog">
+        <div class="modal max-w-xl" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()" tabindex="-1">
+          <h3 class="text-lg font-black tracking-tighter uppercase mb-8">{{ editing ? 'EDIT TRANSACTION' : 'NEW TRANSACTION' }}</h3>
+          @if (formError()) { 
+            <div class="mb-6 p-4 border border-money-neg text-money-neg text-[10px] font-bold uppercase tracking-wider">
+              {{ formError() }}
+            </div> 
+          }
+          <div class="space-y-6">
             <div class="form-group">
-              <label class="form-label">Amount *</label>
-              <input class="form-input" type="number" [(ngModel)]="form.amount" placeholder="0.00" />
+              <label class="form-label" for="exp-title">DESCRIPTION *</label>
+              <input class="form-input" id="exp-title" [(ngModel)]="form.title" placeholder="WHAT DID YOU SPEND ON?" />
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="form-group">
+                <label class="form-label" for="exp-amount">AMOUNT *</label>
+                <input class="form-input" id="exp-amount" type="number" [(ngModel)]="form.amount" placeholder="0.00" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="exp-date">DATE *</label>
+                <input class="form-input" id="exp-date" type="date" [(ngModel)]="form.date" />
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="form-group">
+                <label class="form-label" for="exp-category">CATEGORY</label>
+                <select class="form-input" id="exp-category" [(ngModel)]="form.category">
+                  @for (c of categories; track c) { <option>{{ c | uppercase }}</option> }
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="exp-payment">PAYMENT METHOD</label>
+                <select class="form-input" id="exp-payment" [(ngModel)]="form.paymentMethod">
+                  <option value="">— SELECT —</option>
+                  @for (p of paymentMethods; track p) { <option>{{ p | uppercase }}</option> }
+                </select>
+              </div>
             </div>
             <div class="form-group">
-              <label class="form-label">Date *</label>
-              <input class="form-input" type="date" [(ngModel)]="form.date" />
+              <label class="form-label" for="exp-tags">TAGS</label>
+              <input class="form-input" id="exp-tags" [(ngModel)]="form.tags" placeholder="WORK, PERSONAL, ETC." />
             </div>
-          </div>
-          <div class="form-row2">
-            <div class="form-group">
-              <label class="form-label">Category</label>
-              <select class="form-input" [(ngModel)]="form.category">
-                @for (c of categories; track c) { <option>{{ c }}</option> }
-              </select>
+            <div class="flex gap-4 pt-4">
+              <button class="btn btn-ghost flex-1 py-3 text-xs font-bold uppercase tracking-widest" (click)="showModal.set(false)">CANCEL</button>
+              <button class="btn btn-primary flex-1 py-3 text-xs font-bold uppercase tracking-widest" [disabled]="saving()" (click)="saveExpense()">
+                {{ saving() ? 'SAVING...' : (editing ? 'UPDATE' : 'SAVE') }}
+              </button>
             </div>
-            <div class="form-group">
-              <label class="form-label">Payment Method</label>
-              <select class="form-input" [(ngModel)]="form.paymentMethod">
-                <option value="">— Select —</option>
-                @for (p of paymentMethods; track p) { <option>{{ p }}</option> }
-              </select>
-            </div>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Description</label>
-            <input class="form-input" [(ngModel)]="form.description" placeholder="Optional note..." />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Tags</label>
-            <input class="form-input" [(ngModel)]="form.tags" placeholder="e.g. work, personal (comma separated)" />
-          </div>
-          <div class="modal-actions">
-            <button class="btn btn-ghost" (click)="showModal.set(false)">Cancel</button>
-            <button class="btn btn-primary" [disabled]="saving()" (click)="saveExpense()">
-              {{ saving() ? 'Saving...' : (editing ? 'Update' : 'Add Expense') }}
-            </button>
           </div>
         </div>
       </div>
     }
-  `,
-  styles: [`
-    .expenses-page { padding: 32px; max-width: 900px; margin: 0 auto; }
-    .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
-    .page-title { font-family: var(--font-display); font-size: 28px; font-weight: 800; }
-    .page-sub { color: var(--text-muted); font-size: 14px; margin-top: 4px; }
-    .filters { padding: 16px 20px; margin-bottom: 20px; }
-    .filter-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
-    .search-input { flex: 2; min-width: 180px; }
-    .filter-select { flex: 1; min-width: 130px; }
-    .filter-summary { font-size: 13px; color: var(--text-muted); }
-    .filter-summary strong { color: var(--text); }
-    .exp-list { display: flex; flex-direction: column; gap: 10px; }
-    .exp-item { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; display: flex; align-items: center; gap: 14px; transition: var(--transition); }
-    .exp-item:hover { border-color: var(--border-hover); }
-    .exp-icon { font-size: 24px; width: 44px; height: 44px; background: var(--bg-elevated); border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .exp-main { flex: 1; min-width: 0; }
-    .exp-title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
-    .exp-title { font-size: 15px; font-weight: 600; }
-    .exp-meta { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-    .dot { color: var(--text-dim); }
-    .tags { color: var(--accent); }
-    .exp-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
-    .exp-amt { font-size: 16px; font-weight: 700; }
-    .exp-actions { display: flex; gap: 4px; opacity: 0; transition: var(--transition); }
-    .exp-item:hover .exp-actions { opacity: 1; }
-    .empty-state { text-align: center; padding: 80px 20px; }
-    .empty-icon { font-size: 52px; margin-bottom: 16px; }
-    .empty-state h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
-    .empty-state p { color: var(--text-muted); font-size: 14px; }
-    .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
-    .form-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
-    .error-msg { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); border-radius: var(--radius-sm); padding: 10px 14px; color: var(--danger); font-size: 13px; margin-bottom: 12px; }
-    @media (max-width: 600px) { .expenses-page { padding: 16px; } .filter-row { flex-direction: column; } .form-row2 { grid-template-columns: 1fr; } }
-  `]
+  `
 })
 export class ExpensesComponent implements OnInit {
+  private svc = inject(ExpenseService);
+  public auth = inject(AuthService);
+
   loading = signal(true);
   showModal = signal(false);
   saving = signal(false);
@@ -189,18 +174,18 @@ export class ExpensesComponent implements OnInit {
 
   get sym() { return this.auth.getCurrencySymbol(); }
   totalFiltered() { return this.filtered().reduce((s, e) => s + e.amount, 0); }
-  getCatIcon(c: string) { return CATEGORY_ICONS[c] || '💰'; }
+  getCatIcon(c: string) { return CATEGORY_ICONS[c] || 'payments'; }
 
-  constructor(private svc: ExpenseService, public auth: AuthService) {}
+  constructor() {}
 
   ngOnInit() { this.load(); }
 
   load() {
     this.loading.set(true);
-    const params: Record<string, number | string> = {};
-    if (this.filterMonth) params['month'] = Number(this.filterMonth);
-    if (this.filterYear) params['year'] = Number(this.filterYear);
-    this.svc.getExpenses({ month: this.filterMonth ? Number(this.filterMonth) : undefined, year: Number(this.filterYear) }).subscribe({
+    this.svc.getExpenses({ 
+      month: this.filterMonth ? Number(this.filterMonth) : undefined, 
+      year: Number(this.filterYear) 
+    }).subscribe({
       next: data => { this.all.set(data); this.applyFilters(); this.loading.set(false); },
       error: () => this.loading.set(false)
     });
@@ -211,7 +196,6 @@ export class ExpensesComponent implements OnInit {
     if (this.filterCategory) data = data.filter(e => e.category === this.filterCategory);
     if (this.searchTerm) data = data.filter(e => e.title.toLowerCase().includes(this.searchTerm.toLowerCase()));
     this.filtered.set(data);
-    this.load();
   }
 
   openAdd() {

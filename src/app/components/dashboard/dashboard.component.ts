@@ -1,9 +1,9 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { ExpenseService } from '../../services/expense.service';
 import { AuthService } from '../../services/auth.service';
-import { DashboardSummary, CATEGORY_ICONS } from '../../models';
+import { DashboardSummary, CATEGORY_ICONS, CATEGORIES } from '../../models';
 import { FormsModule } from '@angular/forms';
 
 @Component({
@@ -11,82 +11,104 @@ import { FormsModule } from '@angular/forms';
   standalone: true,
   imports: [CommonModule, RouterLink, FormsModule],
   template: `
-    <div class="dashboard">
-      <div class="page-header">
+    <div class="px-6 py-10 md:px-12 md:py-16">
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
         <div>
-          <h1 class="page-title">Good {{ greeting }}, {{ firstName }}! 👋</h1>
-          <p class="page-sub">Here's your financial snapshot for {{ monthName }}.</p>
+          <h1 class="text-4xl md:text-5xl font-black tracking-tighter uppercase mb-2">
+            HELLO, {{ firstName }}.
+          </h1>
+          <p class="text-sm font-bold uppercase tracking-[0.2em] text-dim">
+            {{ monthName }} / SUMMARY
+          </p>
         </div>
-        <button class="btn btn-primary" (click)="showAdd.set(true)">+ Add Expense</button>
+        <button class="btn btn-primary px-8 py-3 text-xs tracking-widest" (click)="showAdd.set(true)">
+          ADD EXPENSE
+        </button>
       </div>
 
       @if (loading()) {
-        <div class="skeleton-grid">
-          @for (i of [1,2,3,4]; track i) { <div class="skeleton" style="height:120px"></div> }
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+          @for (i of [1,2,3,4]; track i) { <div class="h-32 bg-neutral-100 dark:bg-neutral-900 animate-pulse"></div> }
         </div>
       } @else if (data()) {
         <!-- Summary Cards -->
-        <div class="summary-grid fade-in">
-          <div class="summary-card primary">
-            <div class="card-label">This Month</div>
-            <div class="card-value">{{ sym }}{{ data()!.totalThisMonth | number:'1.0-0' }}</div>
-            <div class="card-change" [class.up]="data()!.changeFromLastMonth > 0" [class.down]="data()!.changeFromLastMonth < 0">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-px bg-border border border-border mb-16">
+          <div class="bg-bg p-8">
+            <div class="text-[10px] font-bold uppercase tracking-widest text-dim mb-4">TOTAL SPENT</div>
+            <div class="text-3xl font-black tracking-tighter money-neg">
+              {{ sym }}{{ data()!.totalThisMonth | number:'1.0-0' }}
+            </div>
+            <div class="mt-4 text-[10px] font-bold uppercase tracking-wider" [class.money-neg]="data()!.changeFromLastMonth > 0" [class.money-pos]="data()!.changeFromLastMonth < 0">
               {{ data()!.changeFromLastMonth >= 0 ? '▲' : '▼' }}
-              {{ sym }}{{ (data()!.changeFromLastMonth < 0 ? -data()!.changeFromLastMonth : data()!.changeFromLastMonth) | number:'1.0-0' }} vs last month
+              {{ sym }}{{ (data()!.changeFromLastMonth < 0 ? -data()!.changeFromLastMonth : data()!.changeFromLastMonth) | number:'1.0-0' }} VS LAST MONTH
             </div>
           </div>
 
-          <div class="summary-card">
-            <div class="card-label">Budget Used</div>
+          <div class="bg-bg p-8">
+            <div class="text-[10px] font-bold uppercase tracking-widest text-dim mb-4">BUDGET USED</div>
             @if (data()!.monthlyBudget > 0) {
-              <div class="card-value">{{ data()!.budgetPercentUsed | number:'1.0-0' }}%</div>
-              <div class="progress-bar">
-                <div class="progress-fill" [style.width.%]="min100(data()!.budgetPercentUsed)"
-                     [class.danger]="data()!.budgetPercentUsed > 90"
-                     [class.warning]="data()!.budgetPercentUsed > 70 && data()!.budgetPercentUsed <= 90"></div>
+              <div class="text-3xl font-black tracking-tighter" [class.money-neg]="data()!.budgetPercentUsed > 90" [class.money-neu]="data()!.budgetPercentUsed <= 90">
+                {{ data()!.budgetPercentUsed | number:'1.0-0' }}%
               </div>
-              <div class="card-meta">{{ sym }}{{ data()!.totalThisMonth | number:'1.0-0' }} of {{ sym }}{{ data()!.monthlyBudget | number:'1.0-0' }}</div>
+              <div class="mt-4 h-1 bg-neutral-100 dark:bg-neutral-900">
+                <div class="h-full transition-all duration-500" 
+                     [style.width.%]="min100(data()!.budgetPercentUsed)"
+                     [class.bg-money-neg]="data()!.budgetPercentUsed > 90"
+                     [class.bg-money-neu]="data()!.budgetPercentUsed <= 90"></div>
+              </div>
             } @else {
-              <div class="card-value no-budget">—</div>
-              <a routerLink="/app/budget" class="set-budget-link">Set a budget →</a>
+              <div class="text-3xl font-black tracking-tighter text-dim">—</div>
+              <a routerLink="/app/budget" class="mt-4 inline-block text-[10px] font-bold uppercase tracking-widest hover:underline">SET BUDGET →</a>
             }
           </div>
 
-          <div class="summary-card">
-            <div class="card-label">Today's Spend</div>
-            <div class="card-value">{{ sym }}{{ data()!.todaySpent | number:'1.0-0' }}</div>
-            <div class="card-meta">This week: {{ sym }}{{ data()!.weekSpent | number:'1.0-0' }}</div>
+          <div class="bg-bg p-8">
+            <div class="text-[10px] font-bold uppercase tracking-widest text-dim mb-4">TODAY</div>
+            <div class="text-3xl font-black tracking-tighter money-neg">
+              {{ sym }}{{ data()!.todaySpent | number:'1.0-0' }}
+            </div>
+            <div class="mt-4 text-[10px] font-bold uppercase tracking-wider text-dim">
+              WEEK: {{ sym }}{{ data()!.weekSpent | number:'1.0-0' }}
+            </div>
           </div>
 
-          <div class="summary-card">
-            <div class="card-label">Transactions</div>
-            <div class="card-value">{{ data()!.expensesThisMonth }}</div>
-            <div class="card-meta">Top: {{ data()!.topCategoryThisMonth }}</div>
+          <div class="bg-bg p-8">
+            <div class="text-[10px] font-bold uppercase tracking-widest text-dim mb-4">TOP CATEGORY</div>
+            <div class="text-3xl font-black tracking-tighter uppercase truncate">
+              {{ data()!.topCategoryThisMonth || 'NONE' }}
+            </div>
+            <div class="mt-4 text-[10px] font-bold uppercase tracking-wider text-dim">
+              {{ data()!.expensesThisMonth }} TRANSACTIONS
+            </div>
           </div>
         </div>
 
-        <!-- Bottom Grid -->
-        <div class="bottom-grid">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-16">
           <!-- Recent Expenses -->
-          <div class="card recent-card">
-            <div class="section-header">
-              <h2 class="section-title">Recent Expenses</h2>
-              <a routerLink="/app/expenses" class="see-all">See all →</a>
+          <div class="lg:col-span-2">
+            <div class="flex items-center justify-between mb-8 border-b border-border pb-4">
+              <h2 class="text-xs font-bold uppercase tracking-[0.3em]">RECENT TRANSACTIONS</h2>
+              <a routerLink="/app/expenses" class="text-[10px] font-bold uppercase tracking-widest text-dim hover:text-text">VIEW ALL →</a>
             </div>
+            
             @if (data()!.recentExpenses.length === 0) {
-              <div class="empty">No expenses yet. <a routerLink="/app/expenses">Add one!</a></div>
+              <div class="py-12 text-center text-xs font-bold uppercase tracking-widest text-dim border border-dashed border-border">
+                NO TRANSACTIONS RECORDED
+              </div>
             } @else {
-              <div class="expense-list">
+              <div class="divide-y divide-border">
                 @for (e of data()!.recentExpenses; track e.id) {
-                  <div class="expense-row">
-                    <div class="expense-icon">{{ getCatIcon(e.category) }}</div>
-                    <div class="expense-info">
-                      <span class="expense-title">{{ e.title }}</span>
-                      <span class="expense-cat cat-pill" [class]="'cat-'+e.category">{{ e.category }}</span>
+                  <div class="py-6 flex items-center gap-6 group">
+                    <div class="w-12 h-12 flex items-center justify-center border border-border group-hover:bg-neutral-50 dark:group-hover:bg-neutral-950 transition-colors">
+                      <span class="material-icons text-dim">{{ getCatIcon(e.category) }}</span>
                     </div>
-                    <div class="expense-right">
-                      <span class="expense-amount">{{ sym }}{{ e.amount | number:'1.0-0' }}</span>
-                      <span class="expense-date">{{ e.date | date:'d MMM' }}</span>
+                    <div class="flex-1 min-w-0">
+                      <div class="text-sm font-bold uppercase tracking-wider truncate">{{ e.title }}</div>
+                      <div class="text-[10px] font-bold uppercase tracking-widest text-dim mt-1">{{ e.category }}</div>
+                    </div>
+                    <div class="text-right">
+                      <div class="text-sm font-black tracking-tighter money-neg">{{ sym }}{{ e.amount | number:'1.0-0' }}</div>
+                      <div class="text-[10px] font-bold uppercase tracking-widest text-dim mt-1">{{ e.date | date:'d MMM' }}</div>
                     </div>
                   </div>
                 }
@@ -95,25 +117,25 @@ import { FormsModule } from '@angular/forms';
           </div>
 
           <!-- Category Breakdown -->
-          <div class="card cat-card">
-            <div class="section-header">
-              <h2 class="section-title">By Category</h2>
+          <div>
+            <div class="mb-8 border-b border-border pb-4">
+              <h2 class="text-xs font-bold uppercase tracking-[0.3em]">BY CATEGORY</h2>
             </div>
+            
             @if (catEntries.length === 0) {
-              <div class="empty">No data yet.</div>
+              <div class="py-12 text-center text-xs font-bold uppercase tracking-widest text-dim border border-dashed border-border">
+                NO DATA
+              </div>
             } @else {
-              <div class="cat-list">
+              <div class="space-y-8">
                 @for (entry of catEntries; track entry[0]) {
-                  <div class="cat-row">
-                    <div class="cat-left">
-                      <span class="cat-emoji">{{ getCatIcon(entry[0]) }}</span>
-                      <span class="cat-name">{{ entry[0] }}</span>
+                  <div>
+                    <div class="flex justify-between items-end mb-2">
+                      <div class="text-[10px] font-bold uppercase tracking-widest">{{ entry[0] }}</div>
+                      <div class="text-xs font-black tracking-tighter">{{ sym }}{{ entry[1] | number:'1.0-0' }}</div>
                     </div>
-                    <div class="cat-right">
-                      <span class="cat-amount">{{ sym }}{{ entry[1] | number:'1.0-0' }}</span>
-                      <div class="cat-bar-wrap">
-                        <div class="cat-bar" [style.width.%]="catPct(entry[1])"></div>
-                      </div>
+                    <div class="h-px bg-neutral-100 dark:bg-neutral-900 relative">
+                      <div class="absolute inset-y-0 left-0 bg-text transition-all duration-700" [style.width.%]="catPct(entry[1])"></div>
                     </div>
                   </div>
                 }
@@ -125,117 +147,66 @@ import { FormsModule } from '@angular/forms';
 
       <!-- Quick Add Modal -->
       @if (showAdd()) {
-        <div class="modal-overlay" (click)="closeModal($event)">
-          <div class="modal">
-            <h3 class="modal-title">Quick Add Expense</h3>
-            @if (addError()) { <div class="error-msg">{{ addError() }}</div> }
-            <div class="form-group">
-              <label class="form-label">What did you spend on?</label>
-              <input class="form-input" [(ngModel)]="newTitle" placeholder="e.g. Coffee, Groceries..." />
-            </div>
-            <div class="form-row">
+        <div class="modal-overlay" (click)="closeModal($event)" (keydown.escape)="showAdd.set(false)" tabindex="-1" role="dialog">
+          <div class="modal" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()" tabindex="-1">
+            <h3 class="text-lg font-black tracking-tighter uppercase mb-8">QUICK ADD</h3>
+            @if (addError()) { 
+              <div class="mb-6 p-4 border border-money-neg text-money-neg text-[10px] font-bold uppercase tracking-wider">
+                {{ addError() }}
+              </div> 
+            }
+            <div class="space-y-6">
               <div class="form-group">
-                <label class="form-label">Amount</label>
-                <input class="form-input" type="number" [(ngModel)]="newAmount" placeholder="0" />
+                <label class="form-label" for="quick-title">DESCRIPTION</label>
+                <input class="form-input" id="quick-title" [(ngModel)]="newTitle" placeholder="COFFEE, RENT, ETC." />
+              </div>
+              <div class="grid grid-cols-2 gap-4">
+                <div class="form-group">
+                  <label class="form-label" for="quick-amount">AMOUNT</label>
+                  <input class="form-input" id="quick-amount" type="number" [(ngModel)]="newAmount" placeholder="0" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="quick-category">CATEGORY</label>
+                  <select class="form-input" id="quick-category" [(ngModel)]="newCategory">
+                    @for (c of categories; track c) { <option>{{ c }}</option> }
+                  </select>
+                </div>
               </div>
               <div class="form-group">
-                <label class="form-label">Category</label>
-                <select class="form-input" [(ngModel)]="newCategory">
-                  @for (c of categories; track c) { <option>{{ c }}</option> }
-                </select>
+                <label class="form-label" for="quick-date">DATE</label>
+                <input class="form-input" id="quick-date" type="date" [(ngModel)]="newDate" />
               </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Date</label>
-              <input class="form-input" type="date" [(ngModel)]="newDate" />
-            </div>
-            <div class="modal-actions">
-              <button class="btn btn-ghost" (click)="showAdd.set(false)">Cancel</button>
-              <button class="btn btn-primary" [disabled]="adding()" (click)="addExpense()">
-                {{ adding() ? 'Adding...' : 'Add Expense' }}
-              </button>
+              <div class="flex gap-4 pt-4">
+                <button class="btn btn-ghost flex-1 py-3 text-xs font-bold uppercase tracking-widest" (click)="showAdd.set(false)">CANCEL</button>
+                <button class="btn btn-primary flex-1 py-3 text-xs font-bold uppercase tracking-widest" [disabled]="adding()" (click)="addExpense()">
+                  {{ adding() ? 'ADDING...' : 'ADD' }}
+                </button>
+              </div>
             </div>
           </div>
         </div>
       }
     </div>
-  `,
-  styles: [`
-    .dashboard { padding: 32px; max-width: 1200px; margin: 0 auto; }
-    .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 28px; gap: 16px; flex-wrap: wrap; }
-    .page-title { font-family: var(--font-display); font-size: 28px; font-weight: 800; }
-    .page-sub { color: var(--text-muted); font-size: 14px; margin-top: 4px; }
-    .skeleton-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
-    .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
-    .summary-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; transition: var(--transition); }
-    .summary-card:hover { border-color: var(--border-hover); transform: translateY(-2px); box-shadow: var(--shadow-glow); }
-    .summary-card.primary { background: linear-gradient(135deg, rgba(124,58,237,0.2), rgba(6,182,212,0.1)); border-color: rgba(124,58,237,0.3); }
-    .card-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 10px; }
-    .card-value { font-family: var(--font-display); font-size: 30px; font-weight: 800; margin-bottom: 8px; }
-    .no-budget { color: var(--text-dim); }
-    .card-change { font-size: 12px; color: var(--text-muted); }
-    .card-change.up { color: var(--danger); }
-    .card-change.down { color: var(--success); }
-    .card-meta { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
-    .progress-bar { height: 6px; background: var(--bg-elevated); border-radius: 3px; margin: 8px 0; overflow: hidden; }
-    .progress-fill { height: 100%; background: var(--primary); border-radius: 3px; transition: width 0.6s ease; }
-    .progress-fill.warning { background: var(--warning); }
-    .progress-fill.danger { background: var(--danger); }
-    .set-budget-link { font-size: 13px; color: var(--primary-light); }
-    .bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-    .recent-card, .cat-card { padding: 24px; }
-    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-    .section-title { font-size: 16px; font-weight: 700; }
-    .see-all { font-size: 13px; color: var(--primary-light); }
-    .empty { color: var(--text-muted); font-size: 14px; padding: 20px 0; text-align: center; }
-    .empty a { color: var(--primary-light); }
-    .expense-list { display: flex; flex-direction: column; gap: 12px; }
-    .expense-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
-    .expense-row:last-child { border-bottom: none; }
-    .expense-icon { font-size: 22px; width: 36px; height: 36px; background: var(--bg-elevated); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .expense-info { flex: 1; min-width: 0; }
-    .expense-title { display: block; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .expense-cat { display: inline-block; margin-top: 3px; }
-    .expense-right { text-align: right; flex-shrink: 0; }
-    .expense-amount { display: block; font-size: 15px; font-weight: 700; }
-    .expense-date { display: block; font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-    .cat-list { display: flex; flex-direction: column; gap: 14px; }
-    .cat-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-    .cat-left { display: flex; align-items: center; gap: 8px; min-width: 110px; }
-    .cat-emoji { font-size: 18px; }
-    .cat-name { font-size: 13px; font-weight: 500; }
-    .cat-right { flex: 1; display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
-    .cat-amount { font-size: 14px; font-weight: 700; min-width: 70px; text-align: right; }
-    .cat-bar-wrap { width: 80px; height: 6px; background: var(--bg-elevated); border-radius: 3px; overflow: hidden; }
-    .cat-bar { height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent)); border-radius: 3px; transition: width 0.6s ease; }
-    .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
-    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
-    .error-msg { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); border-radius: var(--radius-sm); padding: 10px 14px; color: var(--danger); font-size: 13px; margin-bottom: 4px; }
-    @media (max-width: 1100px) { .summary-grid { grid-template-columns: repeat(2,1fr); } }
-    @media (max-width: 768px) { .dashboard { padding: 20px; } .summary-grid { grid-template-columns: 1fr 1fr; } .bottom-grid { grid-template-columns: 1fr; } }
-    @media (max-width: 480px) { .summary-grid { grid-template-columns: 1fr; } }
-  `]
+  `
 })
 export class DashboardComponent implements OnInit {
+  private svc = inject(ExpenseService);
+  public auth = inject(AuthService);
+
   loading = signal(true);
   data = signal<DashboardSummary | null>(null);
   showAdd = signal(false);
   adding = signal(false);
   addError = signal('');
   newTitle = ''; newAmount = 0; newCategory = 'Food'; newDate = new Date().toISOString().split('T')[0];
-  categories = ['Food','Transport','Shopping','Health','Entertainment','Bills','Education','Other'];
+  categories = CATEGORIES;
   catEntries: [string, number][] = [];
 
-  get greeting() {
-    const h = new Date().getHours();
-    return h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
-  }
   get firstName() { return this.auth.user()?.fullName?.split(' ')[0] || ''; }
-  get monthName() { return new Date().toLocaleString('default', { month: 'long', year: 'numeric' }); }
+  get monthName() { return new Date().toLocaleString('default', { month: 'long', year: 'numeric' }).toUpperCase(); }
   get sym() { return this.auth.getCurrencySymbol(); }
 
-  constructor(private svc: ExpenseService, public auth: AuthService) {}
+  constructor() {}
 
   ngOnInit() { this.load(); }
 
@@ -251,7 +222,7 @@ export class DashboardComponent implements OnInit {
     });
   }
 
-  getCatIcon(cat: string): string { return CATEGORY_ICONS[cat] || '💰'; }
+  getCatIcon(cat: string): string { return CATEGORY_ICONS[cat] || 'payments'; }
   catPct(amt: number): number {
     const max = Math.max(...this.catEntries.map(e => e[1]));
     return max ? (amt / max) * 100 : 0;
