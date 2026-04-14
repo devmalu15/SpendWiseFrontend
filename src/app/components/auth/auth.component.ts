@@ -49,13 +49,13 @@ import { AuthResponse } from '../../models';
             @if (mode() === 'register') {
               <div class="form-group">
                 <label class="form-label" for="full-name">Full Name</label>
-                <input class="form-input" id="full-name" type="text" [(ngModel)]="fullName" placeholder="John Doe" />
+                <input class="form-input" id="full-name" type="text" [(ngModel)]="fullName" placeholder="" />
               </div>
             }
 
             <div class="form-group">
               <label class="form-label" for="email">Email Address</label>
-              <input class="form-input" id="email" type="email" [(ngModel)]="email" placeholder="name@example.com" />
+              <input class="form-input" id="email" type="email" [(ngModel)]="email" placeholder="" />
             </div>
 
             <div class="form-group">
@@ -66,7 +66,7 @@ import { AuthResponse } from '../../models';
                   id="password"
                   [type]="showPwd() ? 'text' : 'password'" 
                   [(ngModel)]="password" 
-                  placeholder="••••••••" 
+                  placeholder="" 
                 />
                 <button 
                   class="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-text"
